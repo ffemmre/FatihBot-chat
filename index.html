@@ -258,17 +258,24 @@
             showTyping();
 
             try {
-                // n8n webhook'una gönder
-                const response = await fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        chatInput: message,
-                        sessionId: 'user-' + Date.now()
-                    })
-                });
+    // Session ID'yi localStorage'da sakla
+    let sessionId = localStorage.getItem('chatSessionId');
+    if (!sessionId) {
+        sessionId = 'user-' + Date.now();
+        localStorage.setItem('chatSessionId', sessionId);
+    }
+
+    // n8n webhook'una gönder
+    const response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            chatInput: message,
+            sessionId: sessionId
+        })
+    });
 
                 const data = await response.json();
                 hideTyping();
