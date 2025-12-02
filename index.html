@@ -181,7 +181,7 @@
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            🤖 FatihBot - Fatih'in AI Asistanı
+            🤖 FatihBot: Fatih's AI Assistant
         </div>
         
         <div class="chat-messages" id="chatMessages">
@@ -203,10 +203,10 @@
                 type="text" 
                 class="chat-input" 
                 id="chatInput" 
-                placeholder="Mesajınızı yazın..."
+                placeholder="Type your message..."
                 autocomplete="off"
             >
-            <button class="send-button" id="sendButton">Gönder</button>
+            <button class="send-button" id="sendButton">Send</button>
         </div>
     </div>
 
@@ -279,12 +279,12 @@
                 } else if (data.message) {
                     addMessage(data.message, false);
                 } else {
-                    addMessage('Bir hata oluştu. Lütfen tekrar deneyin.', false);
+                    addMessage('An error occurred. Please try again.', false);
                 }
             } catch (error) {
                 hideTyping();
                 console.error('Error:', error);
-                addMessage('Bağlantı hatası. Lütfen tekrar deneyin.', false);
+                addMessage('Connection error. Please try again.', false);
             }
 
             sendButton.disabled = false;
