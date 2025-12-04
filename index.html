@@ -1,9 +1,27 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FatihBot Chat</title>
+    <title>FatihBot - Talk to Fatih's AI Assistant</title>
+    
+    <meta name="description" content="Experience how Fatih thinks. Chat with FatihBot, an AI assistant that demonstrates real SDR skills and outbound strategy.">
+    
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://letstalkfatih.space">
+    <meta property="og:title" content="FatihBot - Talk to Fatih's AI Assistant">
+    <meta property="og:description" content="Most SDRs send noise. This AI learns. Chat with FatihBot to see how Fatih approaches outbound sales.">
+    <meta property="og:site_name" content="FatihBot">
+    
+    <link rel="author" href="https://www.linkedin.com/in/feeryigit/">
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GWFLFNVZE"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-9GWFLFNVZE');
+    </script>
     <style>
         * {
             margin: 0;
@@ -169,25 +187,20 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
-
-        .initial-message {
-            text-align: center;
-            color: #999;
-            padding: 40px 20px;
-            font-size: 14px;
-        }
     </style>
 </head>
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            🤖 FatihBot: Fatih's AI Assistant
+            🤖 FatihBot - Fatih's AI Assistant
         </div>
         
         <div class="chat-messages" id="chatMessages">
             <div class="message bot">
                 <div class="message-content">
-                    You're talking to Fatih's AI. Instead of a generic hello, I’ll show how Fatih thinks live. <br><br>
+                    You're talking to Fatih's AI. Instead of a generic hello, I'll show how Fatih thinks live.
+                    <br><br>
+                    What's your role, and what does your company do in one line?
                 </div>
             </div>
         </div>
@@ -215,8 +228,6 @@
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
         const typingIndicator = document.getElementById('typingIndicator');
-
-        // n8n webhook URL'nizi buraya yapıştırın
         const WEBHOOK_URL = 'https://ffemre.app.n8n.cloud/webhook/chat';
 
         function addMessage(content, isUser = false) {
@@ -226,15 +237,12 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
             
-            // URL'leri tıklanabilir linklere çevir
             const urlRegex = /(https?:\/\/[^\s]+)/g;
             const linkedContent = content.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
             
             contentDiv.innerHTML = linkedContent;
             messageDiv.appendChild(contentDiv);
             chatMessages.appendChild(messageDiv);
-            
-            // Scroll to bottom
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
@@ -251,36 +259,32 @@
             const message = chatInput.value.trim();
             if (!message) return;
 
-            // Kullanıcı mesajını göster
             addMessage(message, true);
             chatInput.value = '';
             sendButton.disabled = true;
             showTyping();
 
             try {
-    // Session ID'yi localStorage'da sakla
-    let sessionId = localStorage.getItem('chatSessionId');
-    if (!sessionId) {
-        sessionId = 'user-' + Date.now();
-        localStorage.setItem('chatSessionId', sessionId);
-    }
+                let sessionId = localStorage.getItem('chatSessionId');
+                if (!sessionId) {
+                    sessionId = 'user-' + Date.now();
+                    localStorage.setItem('chatSessionId', sessionId);
+                }
 
-    // n8n webhook'una gönder
-    const response = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            chatInput: message,
-            sessionId: sessionId
-        })
-    });
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chatInput: message,
+                        sessionId: sessionId
+                    })
+                });
 
                 const data = await response.json();
                 hideTyping();
                 
-                // Bot yanıtını göster
                 if (data.output) {
                     addMessage(data.output, false);
                 } else if (data.message) {
@@ -298,17 +302,14 @@
             chatInput.focus();
         }
 
-        // Send button click
         sendButton.addEventListener('click', sendMessage);
 
-        // Enter key press
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 sendMessage();
             }
         });
 
-        // Focus input on load
         chatInput.focus();
     </script>
 </body>
