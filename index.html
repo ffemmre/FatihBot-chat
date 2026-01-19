@@ -230,7 +230,8 @@
         const typingIndicator = document.getElementById('typingIndicator');
         const WEBHOOK_URL = 'https://n8n.srv1270160.hstgr.cloud/webhook/d083358f-e360-464e-bbc8-572b410100b4';
 
-        // Keep track of pending message for retry
+        // Keep track of server readiness
+        let serverReady = false;
         let pendingMessage = null;
 
         function addMessage(content, isUser = false) {
@@ -308,27 +309,27 @@
                 
                 if (data.output) {
                     addMessage(data.output, false);
-                    pendingMessage = null; // Clear pending message on success
+                    pendingMessage = null;
+                    serverReady = true; // Mark server as ready after first success
                 } else if (data.message) {
                     addMessage(data.message, false);
                     pendingMessage = null;
+                    serverReady = true;
                 } else {
                     throw new Error('Invalid response format');
                 }
             } catch (error) {
                 console.error(`Error on attempt ${retryCount + 1}:`, error);
                 
-                // SILENT RETRY - Keep typing indicator, no error messages
-                // Maximum 5 retries with 4 second intervals
+                // SILENT RETRY - Keep typing indicator visible
                 if (retryCount < 5) {
-                    // Wait 4 seconds before retry (typing indicator stays visible)
+                    // Wait 4 seconds before retry
                     await new Promise(resolve => setTimeout(resolve, 4000));
                     
-                    // Retry with incremented count
-                    console.log(`Retry attempt ${retryCount + 1}/5 - waiting for server...`);
+                    console.log(`Retry attempt ${retryCount + 1}/5`);
                     return sendMessage(retryCount + 1, message);
                 } else {
-                    // After 5 failed retries, show error and hide typing
+                    // After 5 failed retries, show error
                     hideTyping();
                     addMessage('Unable to connect. The server may be down. Please try again later.', false);
                     pendingMessage = null;
@@ -339,23 +340,65 @@
             chatInput.focus();
         }
 
-        // Warmup ping on page load
-        async function warmupServer() {
-            try {
-                console.log('Warming up server...');
-                await fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ warmup: true })
-                });
-                console.log('Server warmup complete');
-            } catch (error) {
-                console.log('Warmup ping sent (server may be starting)');
+        // AGGRESSIVE WARMUP STRATEGY
+        // Send multiple warmup pings to wake up n8n before user sends first message
+        async function aggressiveWarmup() {
+            console.log('🔥 Starting aggressive warmup sequence...');
+            
+            const warmupPings = [
+                { delay: 0, label: 'Immediate ping' },
+                { delay: 2000, label: 'Second ping (2s)' },
+                { delay: 5000, label: 'Third ping (5s)' },
+                { delay: 10000, label: 'Fourth ping (10s)' },
+                { delay: 15000, label: 'Fifth ping (15s)' }
+            ];
+
+            for (const ping of warmupPings) {
+                setTimeout(async () => {
+                    try {
+                        console.log(`📡 ${ping.label}`);
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 5000);
+                        
+                        const response = await fetch(WEBHOOK_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                warmup: true,
+                                timestamp: Date.now()
+                            }),
+                            signal: controller.signal
+                        });
+                        
+                        clearTimeout(timeoutId);
+                        
+                        if (response.ok) {
+                            serverReady = true;
+                            console.log(`✅ ${ping.label} - Server is READY!`);
+                        }
+                    } catch (error) {
+                        console.log(`⏳ ${ping.label} - Server warming up...`);
+                    }
+                }, ping.delay);
             }
+            
+            console.log('🎯 Warmup sequence initiated. Server should be ready in 10-15 seconds.');
         }
 
-        // Warmup server when page loads
-        warmupServer();
+        // Start aggressive warmup immediately when page loads
+        aggressiveWarmup();
+
+        // Also ping every 20 seconds while user is on the page (keep alive)
+        setInterval(() => {
+            if (!serverReady) {
+                console.log('🔄 Keep-alive ping...');
+                fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keepalive: true })
+                }).catch(() => {});
+            }
+        }, 20000);
 
         sendButton.addEventListener('click', () => sendMessage());
 
