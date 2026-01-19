@@ -462,6 +462,49 @@
                             console.log(`📡 Background wake-up ping ${i + 1}/9 sent`);
                         }, i * 800); // 0ms, 800ms, 1600ms, 2400ms... staggered
                     }
+                    
+                    // ADDITIONAL: Auto-retry first message after 3 seconds if no response
+                    setTimeout(() => {
+                        if (pendingMessage === message && !serverReady) {
+                            console.log('⚡ AUTO-RETRY: First message being resent after 3s...');
+                            // Send another wave of requests
+                            for (let i = 0; i < 5; i++) {
+                                setTimeout(() => {
+                                    fetch(WEBHOOK_URL, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            chatInput: message,
+                                            sessionId: localStorage.getItem('chatSessionId') + '-retry',
+                                            autoRetry: true
+                                        })
+                                    }).catch(() => {});
+                                    console.log(`🔄 Auto-retry ping ${i + 1}/5 sent`);
+                                }, i * 600);
+                            }
+                        }
+                    }, 3000);
+                    
+                    // FINAL WAVE: Another retry after 6 seconds
+                    setTimeout(() => {
+                        if (pendingMessage === message && !serverReady) {
+                            console.log('💥 FINAL WAVE: Sending massive retry after 6s...');
+                            for (let i = 0; i < 7; i++) {
+                                setTimeout(() => {
+                                    fetch(WEBHOOK_URL, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            chatInput: message,
+                                            sessionId: localStorage.getItem('chatSessionId') + '-final',
+                                            finalWave: true
+                                        })
+                                    }).catch(() => {});
+                                    console.log(`💥 Final wave ping ${i + 1}/7 sent`);
+                                }, i * 500);
+                            }
+                        }
+                    }, 6000);
                 }
             }
 
