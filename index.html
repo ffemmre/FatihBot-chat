@@ -468,20 +468,65 @@
                     }
                     
                     // ADDITIONAL: Auto-retry first message after 8 seconds if no response
-                    // This time send as REAL MESSAGE, not background ping
-                    setTimeout(() => {
+                    // Send as background request (no UI duplication)
+                    setTimeout(async () => {
                         if (pendingMessage === message && !serverReady) {
-                            console.log('🔁 AUTO-RESEND: Sending first message again as real request...');
-                            // Resend the actual message (will trigger normal flow)
-                            sendMessage(0, message, false);
+                            console.log('🔁 AUTO-RESEND: Silently sending first message again...');
+                            try {
+                                const response = await fetch(WEBHOOK_URL, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        chatInput: message,
+                                        sessionId: localStorage.getItem('chatSessionId')
+                                    })
+                                });
+                                
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    if (data.output || data.message) {
+                                        hideTyping();
+                                        addMessage(data.output || data.message, false);
+                                        pendingMessage = null;
+                                        serverReady = true;
+                                        sendButton.disabled = false;
+                                        console.log('✅ Auto-resend got response!');
+                                    }
+                                }
+                            } catch (error) {
+                                console.log('⏳ Auto-resend attempt 1 failed, will retry...');
+                            }
                         }
                     }, 8000);
                     
                     // FINAL AUTO-RESEND: After 12 seconds
-                    setTimeout(() => {
+                    setTimeout(async () => {
                         if (pendingMessage === message && !serverReady) {
-                            console.log('🔁🔁 FINAL AUTO-RESEND: One more try...');
-                            sendMessage(0, message, false);
+                            console.log('🔁🔁 FINAL AUTO-RESEND: Last attempt...');
+                            try {
+                                const response = await fetch(WEBHOOK_URL, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        chatInput: message,
+                                        sessionId: localStorage.getItem('chatSessionId')
+                                    })
+                                });
+                                
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    if (data.output || data.message) {
+                                        hideTyping();
+                                        addMessage(data.output || data.message, false);
+                                        pendingMessage = null;
+                                        serverReady = true;
+                                        sendButton.disabled = false;
+                                        console.log('✅ Final auto-resend got response!');
+                                    }
+                                }
+                            } catch (error) {
+                                console.log('⏳ Final auto-resend failed');
+                            }
                         }
                     }, 12000);
                 }
