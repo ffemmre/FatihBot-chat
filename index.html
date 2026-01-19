@@ -257,6 +257,42 @@
         let pendingMessage = null;
         let warmupCompleted = false;
 
+        // Detect LinkedIn in-app browser
+        const isLinkedInBrowser = /LinkedInApp/i.test(navigator.userAgent);
+        
+        // Show warning if in LinkedIn browser
+        if (isLinkedInBrowser) {
+            const warningDiv = document.createElement('div');
+            warningDiv.style.cssText = `
+                background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+                color: white;
+                padding: 16px 20px;
+                text-align: center;
+                font-size: 14px;
+                line-height: 1.5;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            `;
+            warningDiv.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 8px;">
+                    ⚠️ LinkedIn Browser Detected
+                </div>
+                <div style="font-size: 13px; margin-bottom: 12px;">
+                    For best experience, open in Chrome or Safari
+                </div>
+                <button onclick="window.location.href='googlechrome://navigate?url=' + encodeURIComponent(window.location.href)" 
+                        style="background: white; color: #ff6b6b; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; margin-right: 8px; cursor: pointer;">
+                    Open in Chrome
+                </button>
+                <button onclick="navigator.clipboard.writeText(window.location.href).then(() => alert('Link copied! Paste in your browser.'))" 
+                        style="background: rgba(255,255,255,0.2); color: white; border: 1px solid white; padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer;">
+                    Copy Link
+                </button>
+            `;
+            document.querySelector('.chat-container').prepend(warningDiv);
+            
+            console.log('⚠️ LinkedIn in-app browser detected - showing deep link options');
+        }
+
         function addMessage(content, isUser = false) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
@@ -347,8 +383,11 @@
                 }
 
                 // Create AbortController for timeout
+                // Mobile devices need longer timeout
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                const timeoutDuration = isMobile ? 45000 : 30000; // 45s for mobile, 30s for desktop
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
@@ -386,16 +425,21 @@
                 console.error(`Error on attempt ${retryCount + 1}:`, error);
                 
                 // SILENT RETRY - Keep typing indicator visible
-                if (retryCount < 5) {
+                // Reduce retries on mobile to prevent excessive waiting
+                const maxRetries = isMobile ? 3 : 5;
+                if (retryCount < maxRetries) {
                     // Wait 4 seconds before retry
                     await new Promise(resolve => setTimeout(resolve, 4000));
                     
-                    console.log(`Retry attempt ${retryCount + 1}/5`);
+                    console.log(`Retry attempt ${retryCount + 1}/${maxRetries}`);
                     return sendMessage(retryCount + 1, message, isFirstMessage);
                 } else {
-                    // After 5 failed retries, show error
+                    // After max retries, show error
                     hideTyping();
-                    addMessage('Unable to connect. The server may be down. Please try again later.', false);
+                    const errorMsg = isMobile 
+                        ? 'Connection timeout on mobile. Please check your internet and try again.' 
+                        : 'Unable to connect. The server may be down. Please try again later.';
+                    addMessage(errorMsg, false);
                     pendingMessage = null;
                 }
             }
@@ -423,7 +467,9 @@
                     try {
                         console.log(`📡 ${ping.label}`);
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 8000);
+                        // Longer timeout for mobile warmup
+                        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                        const timeoutId = setTimeout(() => controller.abort(), isMobile ? 12000 : 8000);
                         
                         const response = await fetch(WEBHOOK_URL, {
                             method: 'POST',
