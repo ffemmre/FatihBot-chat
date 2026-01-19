@@ -405,8 +405,8 @@
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ 
-                                warmup: true,
-                                timestamp: Date.now()
+                                chatInput: "warmup",
+                                sessionId: 'warmup-' + Date.now()
                             }),
                             signal: controller.signal
                         });
@@ -450,7 +450,10 @@
                 fetch(WEBHOOK_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ keepalive: true })
+                    body: JSON.stringify({ 
+                        chatInput: "keepalive",
+                        sessionId: 'keepalive-' + Date.now()
+                    })
                 }).catch(() => {});
             }
         }, 20000);
