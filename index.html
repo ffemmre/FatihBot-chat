@@ -175,11 +175,11 @@
             transition: transform 0.2s;
         }
 
-        .send-button:hover {
+        .send-button:hover:not(:disabled) {
             transform: scale(1.05);
         }
 
-        .send-button:active {
+        .send-button:active:not(:disabled) {
             transform: scale(0.95);
         }
 
@@ -187,12 +187,32 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+
+        /* Warmup status indicator */
+        .warmup-status {
+            padding: 8px 16px;
+            background: #fff3cd;
+            color: #856404;
+            text-align: center;
+            font-size: 13px;
+            border-bottom: 1px solid #ffeeba;
+        }
+
+        .warmup-status.ready {
+            background: #d4edda;
+            color: #155724;
+            border-bottom-color: #c3e6cb;
+        }
     </style>
 </head>
 <body>
     <div class="chat-container">
         <div class="chat-header">
             🤖 FatihBot - Fatih's AI Assistant
+        </div>
+        
+        <div class="warmup-status" id="warmupStatus">
+            ⏳ Warming up... Please wait a moment
         </div>
         
         <div class="chat-messages" id="chatMessages">
@@ -216,10 +236,11 @@
                 type="text" 
                 class="chat-input" 
                 id="chatInput" 
-                placeholder="Type your message..."
+                placeholder="Warming up, please wait..."
                 autocomplete="off"
+                disabled
             >
-            <button class="send-button" id="sendButton">Send</button>
+            <button class="send-button" id="sendButton" disabled>Send</button>
         </div>
     </div>
 
@@ -228,11 +249,13 @@
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
         const typingIndicator = document.getElementById('typingIndicator');
+        const warmupStatus = document.getElementById('warmupStatus');
         const WEBHOOK_URL = 'https://n8n.srv1270160.hstgr.cloud/webhook/d083358f-e360-464e-bbc8-572b410100b4';
 
         // Keep track of server readiness
         let serverReady = false;
         let pendingMessage = null;
+        let warmupCompleted = false;
 
         function addMessage(content, isUser = false) {
             const messageDiv = document.createElement('div');
@@ -259,6 +282,23 @@
 
         function hideTyping() {
             typingIndicator.style.display = 'none';
+        }
+
+        function enableChat() {
+            warmupCompleted = true;
+            sendButton.disabled = false;
+            chatInput.disabled = false;
+            chatInput.placeholder = 'Type your message...';
+            warmupStatus.textContent = '✅ Ready! Start chatting';
+            warmupStatus.className = 'warmup-status ready';
+            
+            // Hide status bar after 2 seconds
+            setTimeout(() => {
+                warmupStatus.style.display = 'none';
+            }, 2000);
+            
+            chatInput.focus();
+            console.log('✅ Chat enabled - server is ready!');
         }
 
         async function sendMessage(retryCount = 0, originalMessage = null) {
@@ -310,7 +350,7 @@
                 if (data.output) {
                     addMessage(data.output, false);
                     pendingMessage = null;
-                    serverReady = true; // Mark server as ready after first success
+                    serverReady = true;
                 } else if (data.message) {
                     addMessage(data.message, false);
                     pendingMessage = null;
@@ -341,7 +381,6 @@
         }
 
         // AGGRESSIVE WARMUP STRATEGY
-        // Send multiple warmup pings to wake up n8n before user sends first message
         async function aggressiveWarmup() {
             console.log('🔥 Starting aggressive warmup sequence...');
             
@@ -349,16 +388,18 @@
                 { delay: 0, label: 'Immediate ping' },
                 { delay: 2000, label: 'Second ping (2s)' },
                 { delay: 5000, label: 'Third ping (5s)' },
-                { delay: 10000, label: 'Fourth ping (10s)' },
-                { delay: 15000, label: 'Fifth ping (15s)' }
+                { delay: 8000, label: 'Fourth ping (8s)' },
+                { delay: 12000, label: 'Fifth ping (12s)' }
             ];
+
+            let successCount = 0;
 
             for (const ping of warmupPings) {
                 setTimeout(async () => {
                     try {
                         console.log(`📡 ${ping.label}`);
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 5000);
+                        const timeoutId = setTimeout(() => controller.abort(), 8000);
                         
                         const response = await fetch(WEBHOOK_URL, {
                             method: 'POST',
@@ -373,8 +414,14 @@
                         clearTimeout(timeoutId);
                         
                         if (response.ok) {
+                            successCount++;
                             serverReady = true;
                             console.log(`✅ ${ping.label} - Server is READY!`);
+                            
+                            // Enable chat after first successful ping
+                            if (!warmupCompleted) {
+                                enableChat();
+                            }
                         }
                     } catch (error) {
                         console.log(`⏳ ${ping.label} - Server warming up...`);
@@ -382,15 +429,23 @@
                 }, ping.delay);
             }
             
+            // Fallback: Enable chat after 15 seconds even if no successful ping
+            setTimeout(() => {
+                if (!warmupCompleted) {
+                    console.log('⚠️ Enabling chat after timeout (warmup may still be in progress)');
+                    enableChat();
+                }
+            }, 15000);
+            
             console.log('🎯 Warmup sequence initiated. Server should be ready in 10-15 seconds.');
         }
 
         // Start aggressive warmup immediately when page loads
         aggressiveWarmup();
 
-        // Also ping every 20 seconds while user is on the page (keep alive)
+        // Keep-alive ping every 20 seconds
         setInterval(() => {
-            if (!serverReady) {
+            if (serverReady && warmupCompleted) {
                 console.log('🔄 Keep-alive ping...');
                 fetch(WEBHOOK_URL, {
                     method: 'POST',
@@ -403,12 +458,10 @@
         sendButton.addEventListener('click', () => sendMessage());
 
         chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !chatInput.disabled) {
                 sendMessage();
             }
         });
-
-        chatInput.focus();
     </script>
 </body>
 </html>
