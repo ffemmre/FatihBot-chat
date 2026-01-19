@@ -314,11 +314,104 @@
         function showTyping() {
             typingIndicator.style.display = 'block';
             chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Start nudge timer - show nudge button after 20 seconds
+            if (window.nudgeTimer) clearTimeout(window.nudgeTimer);
+            window.nudgeTimer = setTimeout(() => {
+                showNudgeButton();
+            }, 20000);
         }
 
         function hideTyping() {
             typingIndicator.style.display = 'none';
+            hideNudgeButton();
+            if (window.nudgeTimer) clearTimeout(window.nudgeTimer);
         }
+
+        function showNudgeButton() {
+            if (document.getElementById('nudgeButton')) return; // Already exists
+            
+            const nudgeContainer = document.createElement('div');
+            nudgeContainer.id = 'nudgeButton';
+            nudgeContainer.style.cssText = `
+                padding: 12px 20px;
+                text-align: center;
+                animation: fadeIn 0.3s;
+            `;
+            
+            const messages = [
+                "🤔 Hmm, taking longer than usual... Want to give it a nudge?",
+                "☕ Server's thinking hard... Give it a gentle poke?",
+                "🐌 Bit slow today! Try a friendly nudge?",
+                "🎯 AI's deep in thought... Nudge it awake?",
+                "⏰ This is unusual... Let's try waking it up again?"
+            ];
+            
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            
+            nudgeContainer.innerHTML = `
+                <div style="color: #666; font-size: 13px; margin-bottom: 10px; font-style: italic;">
+                    ${randomMessage}
+                </div>
+                <button onclick="handleNudge()" style="
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 20px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+                    transition: transform 0.2s;
+                " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    🔄 Nudge the AI
+                </button>
+            `;
+            
+            chatMessages.appendChild(nudgeContainer);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function hideNudgeButton() {
+            const nudgeButton = document.getElementById('nudgeButton');
+            if (nudgeButton) nudgeButton.remove();
+        }
+
+        // Handle nudge - send 5 rapid fire wake-up calls
+        window.handleNudge = function() {
+            console.log('🔔 NUDGE activated - sending 5x rapid wake-up calls!');
+            hideNudgeButton();
+            
+            const currentMessage = pendingMessage || 'nudge';
+            const sessionId = localStorage.getItem('chatSessionId');
+            
+            // Send 5 rapid fire requests
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    fetch(WEBHOOK_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chatInput: currentMessage,
+                            sessionId: sessionId,
+                            nudge: true
+                        })
+                    }).catch(() => {});
+                    console.log(`📡 Nudge ping ${i + 1}/5 sent`);
+                }, i * 500);
+            }
+            
+            // Show encouraging message
+            const encourageDiv = document.createElement('div');
+            encourageDiv.style.cssText = 'padding: 10px; text-align: center; color: #667eea; font-size: 13px; font-style: italic;';
+            encourageDiv.textContent = '✨ Nudged! The AI should wake up any second now...';
+            chatMessages.appendChild(encourageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Remove encourage message after 3 seconds
+            setTimeout(() => encourageDiv.remove(), 3000);
+        };
 
         function enableChat() {
             warmupCompleted = true;
