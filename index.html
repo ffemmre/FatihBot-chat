@@ -315,11 +315,11 @@
                 const messageCount = chatMessages.querySelectorAll('.message.user').length;
                 isFirstMessage = messageCount === 1;
                 
-                // CRITICAL: If first message, send it 3 times rapidly to wake up AI Agent
+                // CRITICAL: If first message, send it 10 times rapidly to wake up AI Agent
                 if (isFirstMessage) {
-                    console.log('🔥 FIRST MESSAGE DETECTED - Sending 3x rapid fire to wake AI Agent!');
-                    // Send 2 additional background pings immediately
-                    for (let i = 0; i < 2; i++) {
+                    console.log('🔥 FIRST MESSAGE DETECTED - Sending 10x RAPID FIRE to wake AI Agent!');
+                    // Send 9 additional background pings immediately
+                    for (let i = 0; i < 9; i++) {
                         setTimeout(() => {
                             fetch(WEBHOOK_URL, {
                                 method: 'POST',
@@ -330,8 +330,8 @@
                                     wakeup: true
                                 })
                             }).catch(() => {});
-                            console.log(`📡 Background wake-up ping ${i + 1}/2 sent`);
-                        }, i * 1500); // 0ms, 1500ms delays
+                            console.log(`📡 Background wake-up ping ${i + 1}/9 sent`);
+                        }, i * 800); // 0ms, 800ms, 1600ms, 2400ms... staggered
                     }
                 }
             }
