@@ -187,6 +187,14 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+
+        /* Retry indicator */
+        .retry-indicator {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -230,6 +238,9 @@
         const typingIndicator = document.getElementById('typingIndicator');
         const WEBHOOK_URL = 'https://n8n.srv1270160.hstgr.cloud/webhook/d083358f-e360-464e-bbc8-572b410100b4';
 
+        // Keep track of pending message for retry
+        let pendingMessage = null;
+
         function addMessage(content, isUser = false) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
@@ -244,6 +255,17 @@
             messageDiv.appendChild(contentDiv);
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        function addRetryIndicator() {
+            const retryDiv = document.createElement('div');
+            retryDiv.className = 'message bot';
+            retryDiv.innerHTML = '<div class="message-content retry-indicator">Reconnecting...</div>';
+            chatMessages.appendChild(retryDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return retryDiv;
         }
 
         function showTyping() {
@@ -255,12 +277,17 @@
             typingIndicator.style.display = 'none';
         }
 
-        async function sendMessage() {
-            const message = chatInput.value.trim();
+        async function sendMessage(retryCount = 0, originalMessage = null) {
+            const message = originalMessage || chatInput.value.trim();
             if (!message) return;
 
-            addMessage(message, true);
-            chatInput.value = '';
+            // Only add user message on first attempt
+            if (retryCount === 0) {
+                addMessage(message, true);
+                chatInput.value = '';
+                pendingMessage = message;
+            }
+
             sendButton.disabled = true;
             showTyping();
 
@@ -271,6 +298,10 @@
                     localStorage.setItem('chatSessionId', sessionId);
                 }
 
+                // Create AbortController for timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
+
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
                     headers: {
@@ -279,30 +310,76 @@
                     body: JSON.stringify({
                         chatInput: message,
                         sessionId: sessionId
-                    })
+                    }),
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
 
                 const data = await response.json();
                 hideTyping();
                 
                 if (data.output) {
                     addMessage(data.output, false);
+                    pendingMessage = null; // Clear pending message on success
                 } else if (data.message) {
                     addMessage(data.message, false);
+                    pendingMessage = null;
                 } else {
-                    addMessage('An error occurred. Please try again.', false);
+                    throw new Error('Invalid response format');
                 }
             } catch (error) {
                 hideTyping();
                 console.error('Error:', error);
-                addMessage('Connection error. Please try again.', false);
+                
+                // AUTOMATIC RETRY LOGIC
+                if (retryCount < 2) {
+                    // Show reconnecting indicator
+                    const retryIndicator = addRetryIndicator();
+                    
+                    // Wait 2 seconds before retry
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    // Remove retry indicator
+                    retryIndicator.remove();
+                    
+                    // Retry with incremented count
+                    console.log(`Retry attempt ${retryCount + 1}/2`);
+                    return sendMessage(retryCount + 1, message);
+                } else {
+                    // After 2 failed retries, show error
+                    addMessage('Connection error. The server might be starting up. Please try again in a moment.', false);
+                    pendingMessage = null;
+                }
             }
 
             sendButton.disabled = false;
             chatInput.focus();
         }
 
-        sendButton.addEventListener('click', sendMessage);
+        // Warmup ping on page load
+        async function warmupServer() {
+            try {
+                console.log('Warming up server...');
+                await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ warmup: true })
+                });
+                console.log('Server warmup complete');
+            } catch (error) {
+                console.log('Warmup failed, but that\'s okay');
+            }
+        }
+
+        // Warmup server when page loads
+        warmupServer();
+
+        sendButton.addEventListener('click', () => sendMessage());
 
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
