@@ -301,7 +301,7 @@
             console.log('✅ Chat enabled - server is ready!');
         }
 
-        async function sendMessage(retryCount = 0, originalMessage = null) {
+        async function sendMessage(retryCount = 0, originalMessage = null, isFirstMessage = false) {
             const message = originalMessage || chatInput.value.trim();
             if (!message) return;
 
@@ -310,6 +310,30 @@
                 addMessage(message, true);
                 chatInput.value = '';
                 pendingMessage = message;
+                
+                // Check if this is the first real message
+                const messageCount = chatMessages.querySelectorAll('.message.user').length;
+                isFirstMessage = messageCount === 1;
+                
+                // CRITICAL: If first message, send it 3 times rapidly to wake up AI Agent
+                if (isFirstMessage) {
+                    console.log('🔥 FIRST MESSAGE DETECTED - Sending 3x rapid fire to wake AI Agent!');
+                    // Send 2 additional background pings immediately
+                    for (let i = 0; i < 2; i++) {
+                        setTimeout(() => {
+                            fetch(WEBHOOK_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    chatInput: message,
+                                    sessionId: localStorage.getItem('chatSessionId'),
+                                    wakeup: true
+                                })
+                            }).catch(() => {});
+                            console.log(`📡 Background wake-up ping ${i + 1}/2 sent`);
+                        }, i * 1500); // 0ms, 1500ms delays
+                    }
+                }
             }
 
             sendButton.disabled = true;
@@ -367,7 +391,7 @@
                     await new Promise(resolve => setTimeout(resolve, 4000));
                     
                     console.log(`Retry attempt ${retryCount + 1}/5`);
-                    return sendMessage(retryCount + 1, message);
+                    return sendMessage(retryCount + 1, message, isFirstMessage);
                 } else {
                     // After 5 failed retries, show error
                     hideTyping();
