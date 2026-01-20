@@ -448,30 +448,19 @@
                 const messageCount = chatMessages.querySelectorAll('.message.user').length;
                 isFirstMessage = messageCount === 1;
                 
-                // CRITICAL: If first message, send it 10 times rapidly to wake up AI Agent
+                // AGGRESSIVE AUTO-RETRY for first message
                 if (isFirstMessage) {
-                    console.log('🔥 FIRST MESSAGE DETECTED - Sending 10x RAPID FIRE to wake AI Agent!');
-                    // Send 9 additional background pings immediately
-                    for (let i = 0; i < 9; i++) {
-                        setTimeout(() => {
-                            fetch(WEBHOOK_URL, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    chatInput: message,
-                                    sessionId: localStorage.getItem('chatSessionId'),
-                                    wakeup: true
-                                })
-                            }).catch(() => {});
-                            console.log(`📡 Background wake-up ping ${i + 1}/9 sent`);
-                        }, i * 800); // 0ms, 800ms, 1600ms, 2400ms... staggered
-                    }
+                    console.log('🔥 FIRST MESSAGE - Starting aggressive auto-retry sequence!');
                     
-                    // ADDITIONAL: Auto-retry first message after 8 seconds if no response
-                    // Send as background request (no UI duplication)
-                    setTimeout(async () => {
-                        if (pendingMessage === message && !serverReady) {
-                            console.log('🔁 AUTO-RESEND: Silently sending first message again...');
+                    // Retry every 2 seconds until we get a response (max 8 attempts)
+                    let retryAttempt = 0;
+                    const maxRetries = 8;
+                    
+                    const retryInterval = setInterval(async () => {
+                        if (pendingMessage === message && !serverReady && retryAttempt < maxRetries) {
+                            retryAttempt++;
+                            console.log(`🔄 Auto-retry attempt ${retryAttempt}/${maxRetries}...`);
+                            
                             try {
                                 const response = await fetch(WEBHOOK_URL, {
                                     method: 'POST',
@@ -485,50 +474,28 @@
                                 if (response.ok) {
                                     const data = await response.json();
                                     if (data.output || data.message) {
+                                        clearInterval(retryInterval);
                                         hideTyping();
                                         addMessage(data.output || data.message, false);
                                         pendingMessage = null;
                                         serverReady = true;
                                         sendButton.disabled = false;
-                                        console.log('✅ Auto-resend got response!');
+                                        console.log(`✅ Auto-retry ${retryAttempt} SUCCESS!`);
                                     }
                                 }
                             } catch (error) {
-                                console.log('⏳ Auto-resend attempt 1 failed, will retry...');
+                                console.log(`⏳ Auto-retry ${retryAttempt} failed, will continue...`);
+                            }
+                        } else if (serverReady || retryAttempt >= maxRetries) {
+                            clearInterval(retryInterval);
+                            if (!serverReady) {
+                                console.log('❌ All auto-retries exhausted');
                             }
                         }
-                    }, 8000);
+                    }, 2000); // Every 2 seconds
                     
-                    // FINAL AUTO-RESEND: After 12 seconds
-                    setTimeout(async () => {
-                        if (pendingMessage === message && !serverReady) {
-                            console.log('🔁🔁 FINAL AUTO-RESEND: Last attempt...');
-                            try {
-                                const response = await fetch(WEBHOOK_URL, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        chatInput: message,
-                                        sessionId: localStorage.getItem('chatSessionId')
-                                    })
-                                });
-                                
-                                if (response.ok) {
-                                    const data = await response.json();
-                                    if (data.output || data.message) {
-                                        hideTyping();
-                                        addMessage(data.output || data.message, false);
-                                        pendingMessage = null;
-                                        serverReady = true;
-                                        sendButton.disabled = false;
-                                        console.log('✅ Final auto-resend got response!');
-                                    }
-                                }
-                            } catch (error) {
-                                console.log('⏳ Final auto-resend failed');
-                            }
-                        }
-                    }, 12000);
+                    // Store interval ID so we can clear it if response comes from main request
+                    window.firstMessageRetryInterval = retryInterval;
                 }
             }
 
@@ -569,6 +536,12 @@
 
                 const data = await response.json();
                 hideTyping();
+                
+                // Clear first message retry interval if exists
+                if (window.firstMessageRetryInterval) {
+                    clearInterval(window.firstMessageRetryInterval);
+                    window.firstMessageRetryInterval = null;
+                }
                 
                 if (data.output) {
                     addMessage(data.output, false);
