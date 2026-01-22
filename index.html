@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FatihBot - Talk to Fatih's AI Assistant | SDR & Outbound Sales Demo</title>
     
-    <meta name="description" content="Experience how Fatih Emre Eryiğit thinks about outbound sales. Chat with FatihBot, an AI assistant that demonstrates real SDR skills, cold email strategy, and sales qualification techniques live.">
+    <meta name="description" content="Experience how Fatih scales outbound sales. Chat with FatihBot, an AI assistant that demonstrates real SDR skills, cold email strategy, and sales qualification techniques live.">
     
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://letstalkfatih.space">
@@ -223,7 +223,7 @@
                     What's your role, and what does your company do in one line?
                     <br><br>
                     <span style="font-size: 12px; color: #888; font-style: italic;">
-                        💡 First message takes ~10s while I wake up. Then instant! 
+                        💡 First message may take a while for me to wake up. Then instant! 
                     </span>
                 </div>
             </div>
@@ -268,33 +268,34 @@
         if (isLinkedInBrowser) {
             const warningDiv = document.createElement('div');
             warningDiv.style.cssText = `
-                background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: white;
                 padding: 16px 20px;
                 text-align: center;
                 font-size: 14px;
                 line-height: 1.5;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                border-bottom: 2px solid rgba(255,255,255,0.2);
             `;
             warningDiv.innerHTML = `
                 <div style="font-weight: 600; margin-bottom: 8px;">
-                    ⚠️ LinkedIn Browser Detected
+                    💡 For the Best Experience, Use a Desktop Browser
                 </div>
-                <div style="font-size: 13px; margin-bottom: 12px;">
-                    For best experience, open in Chrome or Safari
+                <div style="font-size: 13px; margin-bottom: 12px; opacity: 0.95;">
+                    For optimal performance, please open in Chrome, Safari, or Firefox
                 </div>
-                <button onclick="window.location.href='googlechrome://navigate?url=' + encodeURIComponent(window.location.href)" 
-                        style="background: white; color: #ff6b6b; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; margin-right: 8px; cursor: pointer;">
-                    Open in Chrome
+                <button onclick="window.open('${window.location.href}', '_system')" 
+                        style="background: white; color: #667eea; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; margin-right: 8px; cursor: pointer; font-size: 13px;">
+                    Open in Browser
                 </button>
-                <button onclick="navigator.clipboard.writeText(window.location.href).then(() => alert('Link copied! Paste in your browser.'))" 
-                        style="background: rgba(255,255,255,0.2); color: white; border: 1px solid white; padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer;">
+                <button onclick="navigator.clipboard.writeText('${window.location.href}').then(() => { const btn = event.target; btn.textContent = '✓ Copied!'; setTimeout(() => btn.textContent = 'Copy Link', 2000); })" 
+                        style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.5); padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 13px;">
                     Copy Link
                 </button>
             `;
             document.querySelector('.chat-container').prepend(warningDiv);
             
-            console.log('⚠️ LinkedIn in-app browser detected - showing deep link options');
+            console.log('💡 LinkedIn in-app browser detected - showing professional browser recommendation');
         }
 
         function addMessage(content, isUser = false) {
@@ -344,11 +345,11 @@
             `;
             
             const messages = [
-                "🤔 Hmm, taking longer than usual... Want to give it a nudge?",
-                "☕ Server's thinking hard... Give it a gentle poke?",
-                "🐌 Bit slow today! Try a friendly nudge?",
-                "🎯 AI's deep in thought... Nudge it awake?",
-                "⏰ This is unusual... Let's try waking it up again?"
+                "🤔 Hmm, taking longer than usual... Want to give it a nudge? or You can send your message again.",
+                "☕ Server's thinking hard... Give it a gentle poke? You can send your message again as well",
+                "🐌 Bit slow today! Try a friendly nudge? or You can send your message again",
+                "🎯 AI's deep in thought... Nudge it awake? You can send your message again as well",
+                "⏰ This is unusual... Let's try waking it up again. or You can send your message again"
             ];
             
             const randomMessage = messages[Math.floor(Math.random() * messages.length)];
